@@ -14,8 +14,46 @@ on:
         default: true
 
 jobs:
-  build-push:
+  build-pr:
+    if: ${{ github.event_name == 'pull_request' }}
     runs-on: ubuntu-22.04
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 10
+        
+    - name: 编译 GRUB4DOS
+      uses: yaya2007/grub4dos-build@main
+      with:
+        useQemu: 1
+        
+    - name: 打包编译产物
+      run: |
+        mkdir -p grub4dos-package
+        cp -v *.bin *.efi *.lst *.txt grub4dos-package/ 2>/dev/null || true
+        cp -v grldr grldr.mbr grub4dos-package/ 2>/dev/null || true
+        
+        echo "GRUB4DOS ${{ github.sha }}" > grub4dos-package/VERSION.txt
+        echo "Build Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> grub4dos-package/VERSION.txt
+        echo "Commit: ${{ github.sha }}" >> grub4dos-package/VERSION.txt
+        
+        7z a -t7z -mx=9 grub4dos-PR${{ github.event.pull_request.number }}-${{ github.sha }}.7z grub4dos-package/
+        zip -r grub4dos-PR${{ github.event.pull_request.number }}-${{ github.sha }}.zip grub4dos-package/
+        
+    - name: 上传 Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: grub4dos-pr${{ github.event.pull_request.number }}
+        path: |
+          *.7z
+          *.zip
+        retention-days: 30
+
+  build-push:
+    if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-22.04
+    environment:
+      name: PAGES
     steps:
     - name: 安装依赖
       run: |
@@ -45,6 +83,8 @@ jobs:
         # 确定版本号
         if [ -n "${{ github.event.inputs.version }}" ]; then
           VER="${{ github.event.inputs.version }}"
+        elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+          VER=${GITHUB_REF#refs/tags/}
         else
           VER="0.4.6a-$(date +%Y%m%d)-${GITHUB_SHA:0:8}"
         fi
@@ -80,13 +120,26 @@ jobs:
         echo "打包完成："
         ls -lh ${PKG_DIR}.*
         
-    - name: 上传 Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: grub4dos-${{ steps.package.outputs.VER }}
-        path: |
-          *.7z
-          *.zip
-          *.tar.xz
-          SHA256SUMS.txt
-        retention-days: 90
+    - name: 发布到 GitHub Releases
+      continue-on-error: true
+      run: |
+        VER="${{ steps.package.outputs.VER }}"
+        
+        if gh release view "$VER" &>/dev/null; then
+          gh release upload "$VER" *.7z *.zip *.tar.xz SHA256SUMS.txt --clobber
+        else
+          gh release create "$VER" \
+            --title "GRUB4DOS $VER" \
+            --notes "构建版本: ${{ github.sha }}" \
+            *.7z *.zip *.tar.xz SHA256SUMS.txt
+        fi
+      env:
+        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+        
+    - name: 生成下载页并上传
+      if: ${{ github.event_name == 'push' }}
+      run: "${{ secrets.BUILD_PAGE }}"
+      env:
+        AK: ${{ secrets.AK }}
+        SK: ${{ secrets.SK }}
+        
