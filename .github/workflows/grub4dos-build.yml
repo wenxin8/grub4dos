@@ -24,11 +24,11 @@ on:
       builder:
         description: '选择编译环境'
         type: choice
-        default: 'wenxin8/grub4dos-build@main'
+        default: 'wenxin8'
         options:
-          - 'wenxin8/grub4dos-build@main'
-          - 'yaya2007/grub4dos-build@main'
-          - 'chenall/grub4dos-build@main'
+          - 'wenxin8'
+          - 'yaya2007'
+          - 'chenall'
 
 jobs:
   build-pr:
@@ -88,20 +88,26 @@ jobs:
         path: ipxe
         ref: v1.21.1
 
-    - name: 设置编译环境变量
-      id: set-builder
-      run: |
-        # 确定使用的 builder
-        if [[ "${{ github.event_name }}" == "workflow_dispatch" && -n "${{ github.event.inputs.builder }}" ]]; then
-          BUILDER="${{ github.event.inputs.builder }}"
-        else
-          BUILDER="wenxin8/grub4dos-build@main"
-        fi
-        echo "builder=${BUILDER}" >> $GITHUB_OUTPUT
-        echo "使用编译环境: ${BUILDER}"
+    # 使用 wenxin8 编译环境
+    - name: 调用 wenxin8 编译环境进行编译
+      if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.builder == 'wenxin8' }}
+      uses: wenxin8/grub4dos-build@main
+      with:
+        useQemu: ${{ github.event.inputs.use_qemu || '1' }}
         
-    - name: 调用专用编译环境进行编译
-      uses: ${{ steps.set-builder.outputs.builder }}
+    # 使用 yaya2007 编译环境
+    - name: 调用 yaya2007 编译环境进行编译
+      if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.builder == 'yaya2007' }}
+      uses: yaya2007/grub4dos-build@main
+      with:
+        useQemu: ${{ github.event.inputs.use_qemu || '1' }}
+        
+    # 使用 chenall 编译环境
+    - name: 调用 chenall 编译环境进行编译
+      if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.builder == 'chenall' }}
+      uses: chenall/grub4dos-build@main
+      with:
+        useQemu: ${{ github.event.inputs.use_qemu || '1' }}
       with:
         useQemu: ${{ github.event.inputs.use_qemu || '1' }}
         
