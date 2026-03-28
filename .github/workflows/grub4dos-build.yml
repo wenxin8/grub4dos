@@ -80,28 +80,27 @@ jobs:
         path: ipxe
         ref: v1.21.1
 
-    - name: 安装 GCC 4.8 (解决依赖冲突)
+    - name: 配置 apt 优先级（解决 32 位库冲突）
       run: |
-        # 添加 Bionic 源，但给低优先级
+        # 添加 Bionic 源，但设置低优先级
         echo "deb [trusted=yes] http://archive.ubuntu.com/ubuntu bionic main universe" | sudo tee /etc/apt/sources.list.d/bionic.list
         
-        # 创建 apt 优先级配置，优先使用 Jammy 的包
-        cat << 'EOF' | sudo tee /etc/apt/preferences.d/bionic
+        # 创建 apt 优先级配置：Jammy (22.04) 优先于 Bionic (18.04)
+        cat << 'EOF' | sudo tee /etc/apt/preferences.d/pin-jammy
+        Package: *
+        Pin: release n=jammy
+        Pin-Priority: 1000
+
         Package: *
         Pin: release n=bionic
         Pin-Priority: 100
         EOF
         
-        sudo apt-get update || true
+        # 更新
+        sudo apt-get update
         
-        # 只安装 gcc-4.8，不安装 32 位库
-        sudo apt-get install -y --no-install-recommends gcc-4.8 g++-4.8
-        
-        # 设置默认
-        sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.8 100
-        sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 100
-        
-        gcc --version
+        # 预安装 Jammy 版本的 32 位库，避免冲突
+        sudo apt-get install -y lib32gcc-s1 libx32gcc-s1
         
     - name: 调用专用编译环境进行编译
       uses: wenxin8/grub4dos-build@main
