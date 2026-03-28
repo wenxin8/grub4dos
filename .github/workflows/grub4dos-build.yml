@@ -25,7 +25,7 @@ on:
 jobs:
   build-pr:
     if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v4
       with:
@@ -60,29 +60,27 @@ jobs:
 
   build-push:
     if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     environment:
       name: PAGES
     steps:
     - name: 安装依赖
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y p7zip-full zip
+      run: sudo apt -y install p7zip-full
         
     - name: 检出代码
-      uses: actions/checkout@v4
+      uses: actions/checkout@v3
       with:
         fetch-depth: 10
         
-    - name: 检出 iPXE (0.4.6分支)
+    - name: 下载 ipxe 源码
       if: ${{ contains(github.ref, '0.4.6') }}
-      uses: actions/checkout@v4
+      uses: actions/checkout@v3
       with:
         repository: ipxe/ipxe
         path: ipxe
         ref: v1.21.1
         
-    - name: 编译 GRUB4DOS
+    - name: 调用专用编译环境进行编译
       uses: wenxin8/grub4dos-build@main
       #uses: yaya2007/grub4dos-build@main
       with:
