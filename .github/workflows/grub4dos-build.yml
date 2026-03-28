@@ -1,6 +1,15 @@
-name: grub4dos-build(发布release成功)
+name: grub4dos-build
 
 on:
+  # 自动触发：代码推送
+  push:
+    branches: [ "master","efi","0.4.6a" ]
+    tags: [ "v*" ]
+  
+  # 自动触发：PR 事件
+  pull_request:
+    types: [ opened , synchronize , reopened ]
+  
   # 手动触发（关键！）
   workflow_dispatch:
     inputs:
