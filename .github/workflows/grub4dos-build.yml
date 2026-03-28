@@ -130,12 +130,12 @@ jobs:
         VER="${{ steps.package.outputs.VER }}"
         
         if gh release view "$VER" &>/dev/null; then
-          gh release upload "$VER" *.7z *.zip --clobber
+          gh release upload "$VER" *.7z --clobber
         else
           gh release create "$VER" \
             --title "GRUB4DOS $VER" \
             --notes "构建版本: ${{ github.sha }}" \
-            *.7z *.zip
+            *.7z
         fi
       env:
         GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
