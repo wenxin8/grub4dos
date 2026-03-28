@@ -1,47 +1,33 @@
 name: grub4dos-build(发布release成功)
 
 on:
-  # 手动触发
+  # 手动触发（关键！）
   workflow_dispatch:
     inputs:
       version:
-        description: '版本号（必填，如：0.4.6a-20260328）'
-        required: true
+        description: '版本号（可选，留空自动生成）'
+        required: false
         default: ''
-      branch:
-        description: '要构建的分支'
-        required: true
-        default: 'master'
-        type: choice
-        options:
-          - master
-          - efi
-          - 0.4.6a
       use_qemu:
         description: '使用 QEMU 测试'
         type: boolean
         default: true
 
 jobs:
-  build-release:
+  build-push:
     runs-on: ubuntu-22.04
-    environment:
-      name: PAGES
-    
     steps:
     - name: 安装依赖
       run: |
         sudo apt-get update
         sudo apt-get install -y p7zip-full zip
         
-    - name: 检出代码
-      uses: actions/checkout@v4
+    - uses: actions/checkout@v4
       with:
-        ref: ${{ github.event.inputs.branch }}
         fetch-depth: 10
         
     - name: 检出 iPXE (0.4.6分支)
-      if: ${{ github.event.inputs.branch == '0.4.6a' }}
+      if: ${{ contains(github.ref, '0.4.6') }}
       uses: actions/checkout@v4
       with:
         repository: ipxe/ipxe
@@ -56,12 +42,11 @@ jobs:
     - name: 打包发布版本
       id: package
       run: |
-        # 使用手动输入的版本号
-        VER="${{ github.event.inputs.version }}"
-        
-        if [ -z "$VER" ]; then
-          echo "错误：版本号不能为空"
-          exit 1
+        # 确定版本号
+        if [ -n "${{ github.event.inputs.version }}" ]; then
+          VER="${{ github.event.inputs.version }}"
+        else
+          VER="0.4.6a-$(date +%Y%m%d)-${GITHUB_SHA:0:8}"
         fi
         
         echo "VER=$VER" >> $GITHUB_OUTPUT
@@ -80,8 +65,8 @@ jobs:
         GRUB4DOS ${VER}
         Build: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
         Commit: ${{ github.sha }}
-        Branch: ${{ github.event.inputs.branch }}
-        Trigger: Manual
+        Branch: ${{ github.ref_name }}
+        Trigger: ${{ github.event_name }}
         EOF
         
         # 创建压缩包
@@ -95,23 +80,13 @@ jobs:
         echo "打包完成："
         ls -lh ${PKG_DIR}.*
         
-    - name: 发布到 GitHub Releases
-      run: |
-        VER="${{ steps.package.outputs.VER }}"
-        
-        # 检查 release 是否已存在
-        if gh release view "$VER" &>/dev/null; then
-          echo "Release $VER 已存在，将更新文件"
-          gh release upload "$VER" *.7z *.zip *.tar.xz SHA256SUMS.txt --clobber
-        else
-          echo "创建新 Release: $VER"
-          gh release create "$VER" \
-            --title "GRUB4DOS $VER" \
-            --notes "手动构建版本
-            - 分支: ${{ github.event.inputs.branch }}
-            - 构建时间: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-            - 提交: ${{ github.sha }}" \
-            *.7z *.zip *.tar.xz SHA256SUMS.txt
-        fi
-      env:
-        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+    - name: 上传 Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: grub4dos-${{ steps.package.outputs.VER }}
+        path: |
+          *.7z
+          *.zip
+          *.tar.xz
+          SHA256SUMS.txt
+        retention-days: 90
