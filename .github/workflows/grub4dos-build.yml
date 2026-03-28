@@ -84,8 +84,8 @@ jobs:
         ref: v1.21.1
         
     - name: 编译 GRUB4DOS
-      uses: yaya2007/grub4dos-build@main
-      #uses: wenxin8/grub4dos-build@main
+      #uses: yaya2007/grub4dos-build@main
+      uses: wenxin8/grub4dos-build@main
       with:
         useQemu: ${{ github.event.inputs.use_qemu || '1' }}
         
