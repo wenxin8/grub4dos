@@ -1,4 +1,4 @@
-name: grub4dos-build
+name: grub4dos-build(发布release成功)
 
 on:
   # 自动触发：代码推送
