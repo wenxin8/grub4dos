@@ -145,10 +145,14 @@ jobs:
       env:
         GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         
-    - name: 生成下载页并上传
-      if: ${{ github.event_name == 'push' }}
-      run: "${{ secrets.BUILD_PAGE }}"
-      env:
-        AK: ${{ secrets.AK }}
-        SK: ${{ secrets.SK }}
-        
+    - name: 上传 Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: grub4dos-${{ steps.package.outputs.VER }}
+        path: |
+          *.7z
+          *.zip
+          *.tar.xz
+          SHA256SUMS.txt
+        if-no-files-found: error
+        retention-days: 90
