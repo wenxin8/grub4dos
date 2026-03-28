@@ -80,29 +80,32 @@ jobs:
         path: ipxe
         ref: v1.21.1
 
-    # 添加 GCC 4.8 安装步骤（仅 64 位）
-    - name: 安装 GCC 4.8 (64位)
+    - name: 预装 GCC 4.8 并修复依赖
       run: |
-        # 添加 Ubuntu 18.04 源
+        # 添加 Bionic 源
         echo "deb [trusted=yes] http://archive.ubuntu.com/ubuntu bionic main universe" | sudo tee /etc/apt/sources.list.d/bionic.list
         
         # 更新
         sudo apt-get update || true
         
-        # 仅安装 64 位 GCC 4.8（跳过 32 位库）
-        sudo apt-get install -y --no-install-recommends gcc-4.8 g++-4.8
+        # 先安装 gcc-4.8 及其依赖，并锁定版本
+        sudo apt-get install -y --allow-downgrades \
+          gcc-4.8 g++-4.8 \
+          libgcc1=1:8-20180414-1ubuntu2 \
+          lib32gcc1=1:8-20180414-1ubuntu2 || true
         
-        # 设置 gcc-4.8 为默认
+        # 设置优先级，防止被升级
+        sudo cat > /etc/apt/preferences.d/gcc-4.8 << 'EOF'
+Package: gcc-4.8 g++-4.8 libgcc1 lib32gcc1
+Pin: version 4.8* | 1:8*
+Pin-Priority: 1001
+EOF
+        
+        # 设置默认编译器
         sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.8 100
         sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 100
         
-        # 验证版本和架构
-        echo "=== GCC 版本 ==="
         gcc --version
-        echo "=== GCC 架构 ==="
-        gcc -dumpmachine
-        echo "=== 检查 32 位库 ==="
-        dpkg -l | grep -E "gcc|libc6" | head -20
         
     - name: 调用专用编译环境进行编译
       uses: wenxin8/grub4dos-build@main
