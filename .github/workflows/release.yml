@@ -1,4 +1,4 @@
-name: grub4dos-build
+name: grub4dos-build(原版)
 
 on:
  push:
