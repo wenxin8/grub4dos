@@ -69,7 +69,8 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y p7zip-full zip
         
-    - uses: actions/checkout@v4
+    - name: 检出代码
+      uses: actions/checkout@v4
       with:
         fetch-depth: 10
         
@@ -118,16 +119,11 @@ jobs:
         Trigger: ${{ github.event_name }}
         EOF
         
-        # 创建压缩包
+        # 创建 7z 压缩包
         7z a -t7z -mx=9 ${PKG_DIR}.7z ${PKG_DIR}/
-        zip -r ${PKG_DIR}.zip ${PKG_DIR}/
-        tar -cJf ${PKG_DIR}.tar.xz ${PKG_DIR}/
-        
-        # 校验和
-        sha256sum ${PKG_DIR}.7z ${PKG_DIR}.zip ${PKG_DIR}.tar.xz > SHA256SUMS.txt
         
         echo "打包完成："
-        ls -lh ${PKG_DIR}.*
+        ls -lh ${PKG_DIR}.7z
         
     - name: 发布到 GitHub Releases
       continue-on-error: true
@@ -135,12 +131,12 @@ jobs:
         VER="${{ steps.package.outputs.VER }}"
         
         if gh release view "$VER" &>/dev/null; then
-          gh release upload "$VER" *.7z *.zip *.tar.xz SHA256SUMS.txt --clobber
+          gh release upload "$VER" *.7z *.zip --clobber
         else
           gh release create "$VER" \
             --title "GRUB4DOS $VER" \
             --notes "构建版本: ${{ github.sha }}" \
-            *.7z *.zip *.tar.xz SHA256SUMS.txt
+            *.7z *.zip
         fi
       env:
         GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
