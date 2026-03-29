@@ -53,66 +53,12 @@ jobs:
         NO_WERROR: 1                    # iPXE 特定变量
         CFLAGS: "-Wno-maybe-uninitialized"
       run: |
-        make -j$(nproc) bin/ipxe.lkrn bin/ipxe.usb NO_WERROR=1
+        make -j$(nproc) bin/ipxe.lkrn bin/ipxe.usb NO_WERROR=1  #禁用警告
 
     - name: 编译 GRUB4DOS
       uses: yaya2007/grub4dos-build@main
       with:
         useQemu: ${{ github.event.inputs.use_qemu || '1' }}
-        
-    - name: 打包发布版本
-      id: package
-      run: |
-        # 确定版本号
-        if [ -n "${{ github.event.inputs.version }}" ]; then
-          VER="${{ github.event.inputs.version }}"
-        elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-          VER=${GITHUB_REF#refs/tags/}
-        else
-          VER="0.4.6a-$(date +%Y%m%d)-${GITHUB_SHA:0:8}"
-        fi
-        
-        echo "VER=$VER" >> $GITHUB_OUTPUT
-        echo "GRUB4DOS_VER=$VER" >> $GITHUB_ENV
-        
-        # 创建目录并复制文件
-        PKG_DIR="grub4dos-${VER}"
-        mkdir -p ${PKG_DIR}
-        
-        cp -v grldr grldr.mbr ${PKG_DIR}/ 2>/dev/null || true
-        cp -v *.efi *.bin ${PKG_DIR}/ 2>/dev/null || true
-        cp -v *.lst README* CHANGELOG* ${PKG_DIR}/ 2>/dev/null || true
-        
-        # 版本信息
-        cat > ${PKG_DIR}/VERSION.txt << EOF
-        GRUB4DOS ${VER}
-        Build: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
-        Commit: ${{ github.sha }}
-        Branch: ${{ github.ref_name }}
-        Trigger: ${{ github.event_name }}
-        EOF
-        
-        # 创建 7z 压缩包
-        7z a -t7z -mx=9 ${PKG_DIR}.7z ${PKG_DIR}/
-        
-        echo "打包完成："
-        ls -lh ${PKG_DIR}.7z
-        
-    - name: 发布到 GitHub Releases
-      continue-on-error: true
-      run: |
-        VER="${{ steps.package.outputs.VER }}"
-        
-        if gh release view "$VER" &>/dev/null; then
-          gh release upload "$VER" *.7z *.zip --clobber
-        else
-          gh release create "$VER" \
-            --title "GRUB4DOS $VER" \
-            --notes "构建版本: ${{ github.sha }}" \
-            *.7z *.zip
-        fi
-      env:
-        GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
         
     - name: 上传 Artifacts
       uses: actions/upload-artifact@v4
