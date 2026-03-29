@@ -84,7 +84,8 @@ jobs:
         ref: ${{ github.event.inputs.build_branch }}
         
     - name: 下载 ipxe 源码
-      if: ${{ contains(github.ref, '0.4.6') }}
+      #if: ${{ contains(github.ref, '0.4.6') }}
+      if: ${{ contains(github.event.inputs.build_branch, '0.4.6') }}
       uses: actions/checkout@v3
       with:
         repository: ipxe/ipxe
