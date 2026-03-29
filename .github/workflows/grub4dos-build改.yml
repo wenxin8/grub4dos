@@ -21,6 +21,15 @@ on:
         description: '使用 QEMU 测试'
         type: boolean
         default: true
+      build_branch:
+        description: '选择构建分支'
+        required: false
+        type: choice
+        options:
+          - 'master'
+          - 'efi'
+          - '0.4.6a'
+        default: '0.4.6a'
 
 jobs:
   build-pr:
@@ -32,7 +41,7 @@ jobs:
         fetch-depth: 10
         
     - name: 编译 GRUB4DOS
-      uses: wenxin8/grub4dos-build@main
+      uses: yaya2007/grub4dos-build@main
       with:
         useQemu: 1
         
@@ -72,6 +81,7 @@ jobs:
       uses: actions/checkout@v3
       with:
         fetch-depth: 10
+        ref: ${{ github.event.inputs.build_branch }}
         
     - name: 下载 ipxe 源码
       if: ${{ contains(github.ref, '0.4.6') }}
@@ -115,7 +125,7 @@ jobs:
         GRUB4DOS ${VER}
         Build: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
         Commit: ${{ github.sha }}
-        Branch: ${{ github.ref_name }}
+        Branch: ${{ github.event.inputs.build_branch }}
         Trigger: ${{ github.event_name }}
         EOF
         
