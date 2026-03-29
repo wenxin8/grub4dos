@@ -1,4 +1,4 @@
-name: grub4dos-build
+name: grub4dos-build(手动可以，push不行)
 
 on:
   # 自动触发：代码推送
@@ -56,12 +56,28 @@ jobs:
       run: |
         make -j$(nproc) bin/ipxe.lkrn bin/ipxe.usb NO_WERROR=1  #禁用警告
 
-    - name: 编译 GRUB4DOS
-      id: build
+    - name: 编译 GRUB4DOS（带 QEMU 测试）
+      id: build_with_qemu
+      continue-on-error: true
       uses: yaya2007/grub4dos-build@main
       with:
-        useQemu: ${{ github.event.inputs.use_qemu || '1' }}
-
+        useQemu: ${{ github.event.inputs.use_qemu || '1' }}   #pursh触发时efi编译用Qemu出错，不用Qemu就正常
+                                                              #手动触发时可以用Qemu没问题
+    - name: QEMU 失败时清理并重新编译（禁用 QEMU）
+      if: steps.build_with_qemu.outcome == 'failure'
+      run: |
+        echo "⚠️ QEMU 测试失败，清理环境并重新编译..."
+        # 清理临时文件
+        rm -rf /tmp/grub4dos-temp
+        rm -rf grubutils
+        rm -f *.7z *.zip *.tar.xz SHA256SUMS.txt 2>/dev/null || true
+        
+    - name: 编译 GRUB4DOS（禁用 QEMU）
+      if: steps.build_with_qemu.outcome == 'failure'
+      uses: yaya2007/grub4dos-build@main
+      with:
+        useQemu: false  # 禁用 QEMU
+    
     - name: 生成版本号
       id: version
       run: |
