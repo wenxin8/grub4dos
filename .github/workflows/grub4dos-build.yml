@@ -126,4 +126,3 @@ jobs:
           SHA256SUMS.txt
         if-no-files-found: error
         retention-days: 
-加个name列出所有7z
