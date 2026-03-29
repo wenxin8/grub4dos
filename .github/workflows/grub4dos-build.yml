@@ -1,4 +1,4 @@
-name: yaya2007/grub4dos-build@main
+name: grub4dos-build(yaya2007)
 
 on:
   # 自动触发：代码推送
