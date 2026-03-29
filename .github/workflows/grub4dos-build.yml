@@ -56,14 +56,41 @@ jobs:
         make -j$(nproc) bin/ipxe.lkrn bin/ipxe.usb NO_WERROR=1  #禁用警告
 
     - name: 编译 GRUB4DOS
+      id: build
       uses: yaya2007/grub4dos-build@main
       with:
         useQemu: ${{ github.event.inputs.use_qemu || '1' }}
+
+    - name: 生成版本号
+      id: version
+      run: |
+        # 确定版本号
+        if [ -n "${{ github.event.inputs.version }}" ]; then
+          VER="${{ github.event.inputs.version }}"
+        elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+          VER=${GITHUB_REF#refs/tags/}
+        else
+          VER="0.4.6a-$(date +%Y%m%d)-${GITHUB_SHA:0:8}"
+        fi
+        
+        echo "VER=$VER" >> $GITHUB_OUTPUT
+        echo "GRUB4DOS_VER=$VER" >> $GITHUB_ENV
+        
+    - name: 列出所有压缩包
+      run: |
+        echo "=========================================="
+        echo "生成的压缩包列表："
+        echo "=========================================="
+        ls -lh *.7z *.zip *.tar.xz 2>/dev/null || echo "未找到压缩包文件"
+        echo "=========================================="
+        echo "SHA256SUMS.txt 内容："
+        echo "=========================================="
+        cat SHA256SUMS.txt 2>/dev/null || echo "未找到 SHA256SUMS.txt"
         
     - name: 上传 Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: grub4dos-${{ steps.package.outputs.VER }}
+        name: grub4dos-${{ steps.version.outputs.VER }}
         path: |
           *.7z
           *.zip
