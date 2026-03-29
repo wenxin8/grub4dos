@@ -23,13 +23,13 @@ on:
         default: true
       build_branch:
         description: '选择构建分支'
-        required: false
+        required: true
         type: choice
         options:
           - 'master'
           - 'efi'
           - '0.4.6a'
-        default: '0.4.6a'
+        default: 'efi'
 
 jobs:
   build-pr:
