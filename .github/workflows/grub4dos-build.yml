@@ -1,11 +1,16 @@
-name: grub4dos-build
+name: grub4dos-build(yaya2007)
 
 on:
+  # 自动触发：代码推送
   push:
-    branches: [ "master", "efi", "0.4.6a" ]
+    branches: [ "master","efi","0.4.6a" ]
     tags: [ "v*" ]
+  
+  # 自动触发：PR 事件
   pull_request:
-    types: [ opened, synchronize, reopened ]
+    types: [ opened , synchronize , reopened ]
+  
+  # 手动触发（关键！）
   workflow_dispatch:
     inputs:
       version:
@@ -22,9 +27,11 @@ on:
         default: false
 
 jobs:
-  build:
+  build-push:
     if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-22.04
+    environment:
+      name: PAGES
     steps:
     - name: 安装依赖
       run: sudo apt -y install p7zip-full
@@ -42,14 +49,16 @@ jobs:
         path: ipxe
         ref: v1.21.1
 
-    - name: 编译
+    - name: 调用专用编译环境进行编译
+      #uses: wenxin8/grub4dos-build@main
       uses: yaya2007/grub4dos-build@main
       with:
         useQemu: ${{ github.event.inputs.use_qemu || '1' }}
         
-    - name: 生成版本号
-      id: version
+    - name: 打包发布版本
+      id: package
       run: |
+        # 确定版本号
         if [ -n "${{ github.event.inputs.version }}" ]; then
           VER="${{ github.event.inputs.version }}"
         elif [[ "${{ github.ref }}" == refs/tags/v* ]]; then
@@ -57,27 +66,51 @@ jobs:
         else
           VER="0.4.6a-$(date +%Y%m%d)-${GITHUB_SHA:0:8}"
         fi
+        
         echo "VER=$VER" >> $GITHUB_OUTPUT
+        echo "GRUB4DOS_VER=$VER" >> $GITHUB_ENV
+        
+        # 创建目录并复制文件
+        PKG_DIR="grub4dos-${VER}"
+        mkdir -p ${PKG_DIR}
+        
+        cp -v grldr grldr.mbr ${PKG_DIR}/ 2>/dev/null || true
+        cp -v *.efi *.bin ${PKG_DIR}/ 2>/dev/null || true
+        cp -v *.lst README* CHANGELOG* ${PKG_DIR}/ 2>/dev/null || true
+        
+        # 版本信息
+        cat > ${PKG_DIR}/VERSION.txt << EOF
+        GRUB4DOS ${VER}
+        Build: $(date -u '+%Y-%m-%d %H:%M:%S UTC')
+        Commit: ${{ github.sha }}
+        Branch: ${{ github.ref_name }}
+        Trigger: ${{ github.event_name }}
+        EOF
+        
+        # 创建 7z 压缩包
+        7z a -t7z -mx=9 ${PKG_DIR}.7z ${PKG_DIR}/
+        
+        echo "打包完成："
+        ls -lh ${PKG_DIR}.7z
+
+    - name: 列出 7z 文件
+      run: |
+        echo "=== 7z 压缩包列表 ==="
+        ls -lh *.7z 2>/dev/null || echo "未找到 7z 文件"
         
     - name: 发布到 GitHub Releases
       if: ${{ github.event.inputs.publish == 'true' || startsWith(github.ref, 'refs/tags/v') }}
       continue-on-error: true
       run: |
-        VER="${{ steps.version.outputs.VER }}"
+        VER="${{ steps.package.outputs.VER }}"
         
-        # 查找编译生成的压缩包
-        if ls *.7z 2>/dev/null; then
-          if gh release view "$VER" &>/dev/null; then
-            gh release upload "$VER" *.7z --clobber
-          else
-            gh release create "$VER" \
-              --title "GRUB4DOS $VER" \
-              --notes "构建版本: ${{ github.sha }}" \
-              *.7z
-          fi
+        if gh release view "$VER" &>/dev/null; then
+          gh release upload "$VER" *.7z --clobber
         else
-          echo "未找到压缩包"
-          exit 1
+          gh release create "$VER" \
+            --title "GRUB4DOS $VER" \
+            --notes "构建版本: ${{ github.sha }}" \
+            *.7z
         fi
       env:
         GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
@@ -85,8 +118,12 @@ jobs:
     - name: 上传 Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: grub4dos-${{ steps.version.outputs.VER }}
+        name: grub4dos-${{ steps.package.outputs.VER }}
         path: |
           *.7z
+          *.zip
+          *.tar.xz
+          SHA256SUMS.txt
         if-no-files-found: error
-        retention-days: 90
+        retention-days: 
+加个name列出所有7z
