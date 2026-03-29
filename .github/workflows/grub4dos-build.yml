@@ -1,5 +1,4 @@
 name: grub4dos-build(yaya2007)
-
 on:
   # 自动触发：代码推送
   push:
