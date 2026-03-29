@@ -78,15 +78,7 @@ jobs:
         echo "GRUB4DOS_VER=$VER" >> $GITHUB_ENV
         
     - name: 列出所有压缩包
-      run: |
-        echo "=========================================="
-        echo "生成的压缩包列表："
-        echo "=========================================="
-        ls -lh *.7z *.zip *.tar.xz 2>/dev/null || echo "未找到压缩包文件"
-        echo "=========================================="
-        echo "SHA256SUMS.txt 内容："
-        echo "=========================================="
-        cat SHA256SUMS.txt 2>/dev/null || echo "未找到 SHA256SUMS.txt"
+      run: ls -lh *.7z *.zip *.tar.xz 2>/dev/null || true
         
     - name: 上传 Artifacts
       uses: actions/upload-artifact@v4
@@ -96,6 +88,5 @@ jobs:
           *.7z
           *.zip
           *.tar.xz
-          SHA256SUMS.txt
         if-no-files-found: error
         retention-days: 90
