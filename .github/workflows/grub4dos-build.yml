@@ -23,42 +23,7 @@ on:
         default: true
 
 jobs:
-  build-pr:
-    if: ${{ github.event_name == 'pull_request' }}
-    runs-on: ubuntu-22.04
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 10
-        
-    - name: 编译 GRUB4DOS
-      uses: yaya2007/grub4dos-build@main
-      with:
-        useQemu: 1
-        
-    - name: 打包编译产物
-      run: |
-        mkdir -p grub4dos-package
-        cp -v *.bin *.efi *.lst *.txt grub4dos-package/ 2>/dev/null || true
-        cp -v grldr grldr.mbr grub4dos-package/ 2>/dev/null || true
-        
-        echo "GRUB4DOS ${{ github.sha }}" > grub4dos-package/VERSION.txt
-        echo "Build Date: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> grub4dos-package/VERSION.txt
-        echo "Commit: ${{ github.sha }}" >> grub4dos-package/VERSION.txt
-        
-        7z a -t7z -mx=9 grub4dos-PR${{ github.event.pull_request.number }}-${{ github.sha }}.7z grub4dos-package/
-        zip -r grub4dos-PR${{ github.event.pull_request.number }}-${{ github.sha }}.zip grub4dos-package/
-        
-    - name: 上传 Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: grub4dos-pr${{ github.event.pull_request.number }}
-        path: |
-          *.7z
-          *.zip
-        retention-days: 30
-
-  build-push:
+  build:
     #if: ${{ github.event_name == 'push' || github.event_name == 'workflow_dispatch' }}
     if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-22.04
