@@ -1,4 +1,5 @@
-name: grub4dos-build(yaya2007)
+name: grub4dos-build
+
 on:
   # 自动触发：代码推送
   push:
@@ -20,10 +21,6 @@ on:
         description: '使用 QEMU 测试'
         type: boolean
         default: true
-      publish:
-        description: '发布到 Releases'
-        type: boolean
-        default: false
 
 jobs:
   build-push:
@@ -33,24 +30,25 @@ jobs:
       name: PAGES
     steps:
     - name: 安装依赖
-      run: sudo apt -y install p7zip-full
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y p7zip-full zip
         
     - name: 检出代码
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         fetch-depth: 10
         
-    - name: 下载 ipxe 源码
+    - name: 检出 iPXE (0.4.6分支)
       if: ${{ contains(github.ref, '0.4.6') }}
-      uses: actions/checkout@v3
+      uses: actions/checkout@v4
       with:
         repository: ipxe/ipxe
         path: ipxe
         ref: v1.21.1
-
-    - name: 调用专用编译环境进行编译
-      uses: wenxin8/grub4dos-build@main
-      #uses: yaya2007/grub4dos-build@main
+        
+    - name: 编译 GRUB4DOS
+      uses: yaya2007/grub4dos-build@main
       with:
         useQemu: ${{ github.event.inputs.use_qemu || '1' }}
         
@@ -91,25 +89,19 @@ jobs:
         
         echo "打包完成："
         ls -lh ${PKG_DIR}.7z
-
-    - name: 列出 7z 文件
-      run: |
-        echo "=== 7z 压缩包列表 ==="
-        ls -lh *.7z 2>/dev/null || echo "未找到 7z 文件"
         
     - name: 发布到 GitHub Releases
-      if: ${{ github.event.inputs.publish == 'true' || startsWith(github.ref, 'refs/tags/v') }}
       continue-on-error: true
       run: |
         VER="${{ steps.package.outputs.VER }}"
         
         if gh release view "$VER" &>/dev/null; then
-          gh release upload "$VER" *.7z --clobber
+          gh release upload "$VER" *.7z *.zip --clobber
         else
           gh release create "$VER" \
             --title "GRUB4DOS $VER" \
             --notes "构建版本: ${{ github.sha }}" \
-            *.7z
+            *.7z *.zip
         fi
       env:
         GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
@@ -124,4 +116,4 @@ jobs:
           *.tar.xz
           SHA256SUMS.txt
         if-no-files-found: error
-        retention-days: 
+        retention-days: 90
